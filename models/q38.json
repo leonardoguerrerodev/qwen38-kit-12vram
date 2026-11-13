@@ -1,0 +1,20 @@
+{
+  "pattern": "Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp.gguf",
+  "hf": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF",
+  "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/resolve/main/Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp.gguf",
+  "sha256": "63f29a2189a6b4cc31f81e093d3856ad293a5583114439f41ae1ed7af4093262",
+  "size": "10442827840",
+  "ctx": "49000",
+  "kv": "q4_0",
+  "ub": "256",
+  "batch": "2048",
+  "ngl": "99",
+  "temp": "0.6",
+  "top_p": "0.95",
+  "top_k": "20",
+  "min_p": "0.0",
+  "draft": "2",
+  "cram": "2048",
+  "extra": ["--spec-type", "ngram-mod", "-bs", "--reasoning-budget", "6000",
+            "--reasoning-budget-message", "Basta de planear: crea o edita el archivo ahora con la herramienta y mejóralo después."]
+}

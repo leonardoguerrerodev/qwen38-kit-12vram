@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# q38 — Linux bootstrap: downloads a pinned Node into .state/node (first run only) and hands over to q38.mjs.
+set -euo pipefail
+R="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+NODE_VER=v22.22.2
+NODE_SHA=88fd1ce767091fd8d4a99fdb2356e98c819f93f3b1f8663853a2dee9b438068a
+NODE="$R/.state/node/bin/node"
+
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*)
+  echo "q38: en Windows usa q38.cmd (doble clic, cmd o PowerShell), no Git Bash / on Windows use q38.cmd, not Git Bash" >&2; exit 1;;
+esac
+[ "$(uname -m)" = x86_64 ] || { echo "q38: solo x86_64 / x86_64 only (Node y llama.cpp son x64)" >&2; exit 1; }
+
+if [ ! -x "$NODE" ]; then
+  for c in curl tar xz sha256sum; do
+    command -v "$c" >/dev/null || { echo "q38: falta / missing: $c" >&2; exit 1; }
+  done
+  f="node-$NODE_VER-linux-x64.tar.xz"
+  mkdir -p "$R/.state"
+  echo "q38: descargando / downloading Node $NODE_VER..."
+  curl -fL --retry 3 -o "$R/.state/$f.part" "https://nodejs.org/dist/$NODE_VER/$f"
+  echo "$NODE_SHA  $R/.state/$f.part" | sha256sum -c --quiet || { rm -f "$R/.state/$f.part"; echo "q38: sha256 no coincide / mismatch" >&2; exit 1; }
+  # extract next to it and rename at the end: an interrupted extraction never leaves a half-made node behind
+  rm -rf "$R/.state/node" "$R/.state/node.tmp"; mkdir -p "$R/.state/node.tmp"
+  tar -xJf "$R/.state/$f.part" -C "$R/.state/node.tmp" --strip-components=1
+  mv "$R/.state/node.tmp" "$R/.state/node"
+  rm -f "$R/.state/$f.part"
+fi
+exec "$NODE" "$R/q38.mjs" "$@"

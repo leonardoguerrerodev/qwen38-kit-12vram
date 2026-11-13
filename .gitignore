@@ -1,0 +1,8 @@
+.state/
+models/*.gguf
+models/*.part
+little-coder/node_modules/
+__pycache__/
+
+# sesiones del agente: nunca se suben
+sessions/
