@@ -10,13 +10,13 @@ Al revisar no arreglas: reportas. Arreglar es otra tarea, salvo que te lo pidan.
 
 ## Procedimiento
 1. **Criterios:** lista lo que se pidió (en el mensaje, la tarjeta o el plan). Sin criterios claros, dilo y revisa solo bugs reales.
-2. **Qué cambió de verdad:** `git status --short` y `git diff --stat`. Sin git: compara con la copia de `/tmp/qwen/` o lista los archivos tocados. Lee el diff, no tu memoria.
+2. **Qué cambió de verdad:** `git status --short` y `git diff --stat`. Los archivos nuevos (`??`) **no salen en `git diff`**: léelos enteros con `read` y pásales los pasos 5 y 6 con `grep -nE '<patrón>' <archivo>`. Sin git: compara con la copia de `/tmp/qwen/` o lista los archivos tocados. Lee el diff, no tu memoria.
 3. **Cruza:** cada cambio debe corresponder a un criterio; si no, es "fuera de alcance". Cada criterio debe tener un cambio; si no, es "omitido".
-4. **Re-ejecuta tú** las comprobaciones (tests, compilación, la receta del fallo) y copia la salida. "Ya pasaba antes" no cuenta.
+4. **Re-ejecuta tú** las comprobaciones (tests, compilación, la receta del fallo) y copia la salida. "Ya pasaba antes" no cuenta. Si hay una página web, la comprobación es la skill `ver-web`.
 5. **Tests debilitados:** `git diff -- '*test*'` → asserts borrados o comentados, `skip`, números relajados para que pase. Cualquiera de ellos es BLOQUEANTE.
 6. **Residuos en lo cambiado:**
    - `git diff | grep -nE '^\+.*(print\(|console\.log|debugger|TODO)'`
-   - archivos temporales o `.bak`; procesos que quedaron vivos (`jobs`, `pgrep -a python`)
+   - archivos temporales o `.bak`; procesos que quedaron vivos (`pgrep -a python; pgrep -a node`; `jobs` no sirve: cada comando corre en una shell nueva)
    - secretos en claro (tokens, claves)
 7. **Código ajeno (review):** cada hallazgo es **Confirmado** (lo reprodujiste ejecutando algo) o **Sospechoso** (un patrón dudoso que no reprodujiste). No supongas precedencias ni lógica invertida: pruébalo con una línea (`python3 -c …`, `node -e …`).
 

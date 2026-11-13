@@ -18,6 +18,7 @@ Copia literal el error y el comando que lo produce. Si el usuario solo dice "no 
 | pygame o ventana | `SDL_VIDEODRIVER=dummy timeout 15 ./venv/bin/python -u -X faulthandler <juego>.py; echo "exit=$?"` |
 | Node | `node --test test/*.test.js` · `node <script>.js` |
 | bash | `bash -x <script>.sh 2>&1 \| tail -40` |
+| Página web | skill `ver-web`: `python3 "$Q38_KIT/skills/ver-web/ver-web.py" index.html` (errores de consola, `pageerror`, cargas fallidas) y la acción que falla (`click:SEL …`) |
 
 - Esa receta es la prueba del arreglo: anótala.
 - Si no se reproduce, dilo y pide el dato que falta. No arregles a ciegas.
@@ -26,7 +27,7 @@ Copia literal el error y el comando que lo produce. Si el usuario solo dice "no 
 **Obligatorio** si hay segfault (139), un cuelgue dentro de una librería, `ImportError` o import circular, "antes andaba", o si la traza termina en `site-packages` o `node_modules`. Si no, haz solo a y b.
 
 a. Intérprete que corre: `./venv/bin/python -c "import sys; print(sys.executable, sys.version)"`
-b. Lo que importa el código: `grep -rhoE '^\s*(import|from)\s+[A-Za-z_]\w*' --include='*.py' --exclude-dir=venv --exclude-dir=.venv . | awk '{print $2}' | sort -u`
+b. Lo que importa el código: `grep -rhoE '^\s*(import|from)\s+[A-Za-z_]\w*' --include='*.py' --exclude-dir=venv --exclude-dir=.venv . | sed -E 's/^\s*(import|from)\s+//' | sort -u`
 c. Lo instalado y si está sano: `./venv/bin/python -m pip list` · `./venv/bin/python -m pip check`
 d. Dos paquetes que dan el mismo módulo (se rompe en C, sin aviso):
    `./venv/bin/python -c "import importlib.metadata as m; d={k:sorted(set(v)) for k,v in m.packages_distributions().items() if len(set(v))>1}; print(d or 'sin duplicados')"`

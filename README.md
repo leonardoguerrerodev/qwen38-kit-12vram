@@ -215,7 +215,7 @@ Run it with `qwen <name>`. Values are quoted strings so they reach llama-server 
 |---|---|
 | `q38`, `q38.cmd`, `q38.ps1` | Linux and Windows starters: they fetch Node and run `q38.mjs` |
 | `q38.mjs` | the launcher: setup, model, llama-server, little-coder |
-| `kit/extensions/` | `oficio` (skill loading + guards), `handoff`, `tps` (speed), `inline-bash` (`!{cmd}`), `lc-permisos`, `lc-plan` (plan → `tareas/`), `lc-temperatura` |
+| `kit/extensions/` | `oficio` (skill loading + guards), `handoff`, `tps` (speed), `inline-bash` (`!{cmd}`), `lc-permisos`, `lc-plan` (plan → `tareas/`), `lc-temperatura`, `razonamiento` (drops old reasoning from the context) |
 | `kit/skills/` | the 5 skills; add a folder to add a skill |
 | `kit/oficio.md` | the work rules added to the agent's prompt |
 | `little-coder/` | little-coder 1.20.0 pinned to Pi 1.5.0 |

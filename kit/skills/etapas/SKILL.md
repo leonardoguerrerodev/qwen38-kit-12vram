@@ -27,6 +27,7 @@ Eres quien escribe el código. El diseño ya está decidido en la tarea: no inve
      | JS | `node --check <archivo>` |
      | Python | `python3 -m py_compile <archivo>` (con venv: `./venv/bin/python -m py_compile <archivo>`) |
      | bash | `bash -n <archivo>` |
+     | Página web (HTML, CSS o su JS) | skill `ver-web`: `python3 "$Q38_KIT/skills/ver-web/ver-web.py" index.html` y una secuencia de acciones por función (léela si no la tienes) |
      | Programa que no termina (juego, GUI, servidor) | `timeout 10 <comando>; echo "exit=$?"` (pygame: antepón `SDL_VIDEODRIVER=dummy`). `exit=124` sin traza = no se cayó en 10 s |
 
    - **La sintaxis no es la conducta.** Si esa verificación solo revisa sintaxis (`node --check`, `py_compile`, `bash -n`) y la etapa agregó o cambió una función, pruébala además con **un caso** cuyo resultado calculaste a mano desde la tarea, en la línea de comando y sin crear archivos:
@@ -58,7 +59,7 @@ No escribas nada más. Espera `continua`.
 - Archivos: solo los que la tarea permite. Nada de `package.json`, dependencias ni archivos auxiliares. No borres archivos que la tarea no pida borrar.
 - Rutas **relativas** al directorio actual (`src/mundo.js`).
 - Nombres, firmas y textos: **exactamente** como la tarea los escribe (mayúsculas, acentos y comillas incluidos).
-- **No arranques procesos que no terminan**: servidores (`python3 -m http.server`, `npx serve`), `--watch` ni nada interactivo. Te quedas colgado. Si tienes que probar uno, siempre con `timeout` (paso 6). La prueba en el navegador la hace una persona.
+- **No arranques procesos que no terminan**: servidores (`python3 -m http.server`, `npx serve`), `--watch` ni nada interactivo. Te quedas colgado. Si tienes que probar uno, siempre con `timeout` (paso 6). Una página no necesita servidor: se prueba con `ver-web` sobre el archivo. Lo estético lo mira una persona.
 - **git solo para mirar** (`git status`, `git diff`, `git log`). Nada que cambie el repo: ni `commit`, `checkout`, `reset` ni `stash`.
 - Si la tarea es ambigua o contradictoria, no adivines: responde `ETAPA N BLOQUEADA` con la duda.
 

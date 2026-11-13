@@ -6,17 +6,23 @@
  *                "/sigue N" sin etapas en contexto → "/skill:etapas /sigue N"
  *   tool_call    (bash y ShellStart de little-coder) bloquea pkill/pgrep -f sin corchetes: el patrón también encuentra a la propia shell y la mata (exit 143)
  *   tool_result  explica en el resultado de bash los códigos de salida por señal (124, 139, 143…)
+ *   agent_end    página web tocada (.html/.css, o .js junto a un .html) y nadie corrió ver-web.py después → un
+ *                mensaje de seguimiento manda a probarla en el navegador antes de cerrar. Una vez por pedido.
+ *                QWEN_GUARDA_WEB=0 la apaga; tampoco actúa con la skill ver-web apagada.
  *   /oficio      estado; /oficio on|off prende o apaga la autocarga; QWEN_AUTOSKILL=0 la apaga al arrancar (evals sin kit)
  *   skills       alt+k (o /oficio sin argumentos): panel para prender y apagar skills, como en Claude. Una apagada sale
  *                de la lista del prompt, no se autocarga, `/skill:x` avisa en vez de cargarla y `read` de su SKILL.md
  *                se bloquea. Se guarda en <carpeta de agente>/skills-off.json (QWEN_SKILLS_OFF lo pisa: little-coder
  *                usa el de Pi, así que el interruptor vale para los dos).
+ *
+ *                Las plantillas que dependen de una skill (/sigue → etapas, /rea → rea) tampoco se envían si está apagada:
+ *                antes /rea mandaba a leer un SKILL.md bloqueado y el modelo seguía sin el protocolo.
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 
 // ── Autocarga ─────────────────────────────────────────────────────────────────
 
@@ -46,8 +52,18 @@ export function elegirSkill(texto: string): Skill | undefined {
 	return undefined;
 }
 
-// "/sigue 2", "/skill:etapas x"; una ruta como "/home/x/…" no es comando.
+// "/sigue 2", "/skill:etapas x", "/rea ruta"; una ruta como "/home/x/…" no es comando.
 const RE_COMANDO = /^\/([\w:.-]+)(\s|$)/;
+
+// Plantillas de prompts/ que solo sirven con su skill.
+const SKILL_DE_PLANTILLA: Record<string, string> = { sigue: "etapas", rea: "rea" };
+
+/** Skill que el comando necesita ("/skill:x" → x, "/sigue 2" → etapas, "/rea ruta" → rea), o undefined. */
+export function skillRequerida(texto: string): string | undefined {
+	const c = texto.match(RE_COMANDO)?.[1];
+	if (!c) return undefined;
+	return c.startsWith("skill:") ? c.slice("skill:".length) : SKILL_DE_PLANTILLA[c];
+}
 
 // ── Guarda: pkill/pgrep -f ────────────────────────────────────────────────────
 
@@ -122,12 +138,62 @@ export function quitarSkills(prompt: string, apagadas: Set<string>): string {
 	return p.replace(/\n*The following skills provide[^<]*<available_skills>\s*<\/available_skills>\n?/, "\n");
 }
 
+// ── Guarda: página web sin probar ─────────────────────────────────────────────
+
+const hayHtml = (dir: string) => {
+	try {
+		return readdirSync(dir).some((f) => /\.html?$/i.test(f));
+	} catch {
+		return false;
+	}
+};
+
+/** ¿Escribir este archivo deja una página por probar? .html y .css siempre; .js/.mjs solo si hay un .html al lado. */
+export function esArchivoWeb(ruta: string, htmlAlLado: (dir: string) => boolean = hayHtml): boolean {
+	if (/\.(html?|css)$/i.test(ruta)) return true;
+	return /\.m?js$/i.test(ruta) && htmlAlLado(dirname(resolve(ruta)));
+}
+
+/** Qué queda sin probar tras esta herramienta: la ruta web escrita, undefined si se corrió ver-web, o lo que había. */
+export function webPendiente(
+	antes: string | undefined,
+	herramienta: string,
+	input: { path?: unknown; command?: unknown },
+	htmlAlLado = hayHtml,
+	cwd = process.cwd(),
+) {
+	const dentro = (ruta: string) => !relative(cwd, resolve(cwd, ruta)).startsWith("..");
+	if (herramienta === "write" || herramienta === "edit") {
+		// una página de prueba en /tmp no es «la página»: solo cuenta lo que está en la carpeta de trabajo
+		const ruta = String(input.path ?? "");
+		return dentro(ruta) && esArchivoWeb(ruta, htmlAlLado) ? ruta : antes;
+	}
+	if (herramienta === "bash" || herramienta === "ShellStart") {
+		const c = String(input.command ?? "");
+		// ver-web sobre un .html de fuera (13-nov: /tmp/ls-test.html) no prueba la página pendiente
+		const ajeno = (c.match(/[^\s"']+\.html?\b/g) ?? []).some((h) => isAbsolute(h) && !dentro(h));
+		if (c.includes("ver-web.py") && !ajeno) return undefined;
+	}
+	return antes;
+}
+
+export const avisoWeb = (ruta: string, script: string) =>
+	`Tocaste una página web (\`${ruta}\`) y no la probaste en el navegador después del último cambio. Antes de cerrar: ` +
+	`corre \`python3 ${script} <el .html>\` sin acciones y luego con una secuencia por función (filtros, modo oscuro, menú…), ` +
+	`con selectores sacados de tu HTML; corrige lo que falle y vuelve a correrla. Si no tienes la skill \`ver-web\` en contexto, ` +
+	`léela primero. Termina con el reporte y cita las líneas literales. Si el script no corre, dilo en \`No comprobado\` con el error.`;
+
 // ── Extensión ─────────────────────────────────────────────────────────────────
 
 export default function oficio(pi: ExtensionAPI): void {
 	let autocarga = process.env.QWEN_AUTOSKILL !== "0";
 	const cargadas = new Set<string>(); // skills ya inyectadas en esta sesión
 	let apagadas = leerApagadas(); // se relee en cada mensaje: otra sesión (Pi o little-coder) pudo cambiarla
+
+	// Guarda web: los sub-agentes de little-coder no cierran el trabajo, así que no se les avisa
+	const guardaWeb = process.env.QWEN_GUARDA_WEB !== "0" && process.env.LITTLE_CODER_SUBAGENT !== "1";
+	let webSinProbar: string | undefined; // última ruta web escrita sin un ver-web.py posterior
+	let avisoDado = false; // un aviso por pedido del usuario: si el modelo no puede correrlo, no se insiste
 
 	pi.on("session_start", async () => cargadas.clear());
 	pi.on("session_compact", async () => cargadas.clear()); // el bloque de la skill pudo quedar resumido
@@ -145,14 +211,15 @@ export default function oficio(pi: ExtensionAPI): void {
 
 	pi.on("input", async (event, ctx) => {
 		if (event.source === "extension") return { action: "continue" };
+		avisoDado = false;
 		apagadas = leerApagadas();
 		const cmd = event.text.match(RE_COMANDO);
-		const pedida = cmd?.[1].startsWith("skill:") ? cmd[1].slice("skill:".length) : undefined;
-		if (pedida && apagadas.has(pedida)) {
-			if (ctx.hasUI) ctx.ui.notify(`oficio: la skill ${pedida} está apagada (alt+k para prenderla)`, "warning");
+		const requerida = skillRequerida(event.text);
+		if (requerida && apagadas.has(requerida)) {
+			if (ctx.hasUI) ctx.ui.notify(`oficio: la skill ${requerida} está apagada (alt+k para prenderla)`, "warning");
 			return { action: "handled" };
 		}
-		if (pedida) cargadas.add(pedida);
+		if (cmd?.[1].startsWith("skill:") && requerida) cargadas.add(requerida);
 		// La plantilla /sigue solo nombra etapas. Si etapas no está en contexto (sesión nueva o tras compactar), se
 		// antepone y "/sigue N" llega literal (Pi expande /skill: antes que las plantillas); etapas lo lee en su paso 1.
 		const skill = cmd ? (cmd[1] === "sigue" ? "etapas" : undefined) : elegirSkill(event.text);
@@ -177,6 +244,9 @@ export default function oficio(pi: ExtensionAPI): void {
 	});
 
 	pi.on("tool_result", async (event) => {
+		const escrituraFallida = event.isError && (event.toolName === "write" || event.toolName === "edit");
+		if (!escrituraFallida) // un ver-web que termina con error igual cuenta: el modelo vio el resultado
+			webSinProbar = webPendiente(webSinProbar, event.toolName, event.input as { path?: unknown; command?: unknown });
 		if (event.toolName !== "bash" || !event.isError) return;
 		const texto = event.content.map((c) => (c.type === "text" ? c.text : "")).join("\n");
 		const pista = pistaSalida(texto);
@@ -185,6 +255,18 @@ export default function oficio(pi: ExtensionAPI): void {
 			content: [...event.content, { type: "text" as const, text: `⚠ ${pista}` }],
 			structuredContent: event.structuredContent,
 		};
+	});
+
+	pi.on("agent_end", async () => {
+		if (!guardaWeb || !webSinProbar || avisoDado || apagadas.has("ver-web")) return;
+		const skill = pi.getCommands().find((c) => c.name === "skill:ver-web") as { path?: string; sourceInfo?: { path?: string } } | undefined;
+		if (!skill) return; // sin la skill no hay con qué probar
+		const dir = skill.sourceInfo?.path ?? skill.path;
+		const script = dir ? join(dir.endsWith(".md") ? dirname(dir) : dir, "ver-web.py") : join(process.env.Q38_KIT ?? "kit", "skills", "ver-web", "ver-web.py");
+		const ruta = webSinProbar;
+		avisoDado = true;
+		webSinProbar = undefined;
+		pi.sendUserMessage(avisoWeb(ruta, script), { deliverAs: "followUp" });
 	});
 
 	const estado = () =>
@@ -223,7 +305,7 @@ export default function oficio(pi: ExtensionAPI): void {
 			if (a === "on" || a === "off") autocarga = a === "on";
 			else if (!a && ctx.hasUI) return panel(ctx);
 			apagadas = leerApagadas();
-			ctx.ui.notify(`${estado()} · guardas: pkill/pgrep -f, códigos de salida`, "info");
+			ctx.ui.notify(`${estado()} · guardas: pkill/pgrep -f, códigos de salida, web sin probar`, "info");
 		},
 	});
 }

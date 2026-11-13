@@ -215,7 +215,7 @@ Se usa con `qwen <nombre>`. Los valores van entre comillas para que lleguen tal 
 |---|---|
 | `q38`, `q38.cmd`, `q38.ps1` | arranques para Linux y Windows: bajan Node y corren `q38.mjs` |
 | `q38.mjs` | el launcher: instalación, modelo, llama-server y little-coder |
-| `kit/extensions/` | `oficio` (carga de skills y guardas), `handoff`, `tps` (velocidad), `inline-bash` (`!{cmd}`), `lc-permisos`, `lc-plan` (plan → `tareas/`), `lc-temperatura` |
+| `kit/extensions/` | `oficio` (carga de skills y guardas), `handoff`, `tps` (velocidad), `inline-bash` (`!{cmd}`), `lc-permisos`, `lc-plan` (plan → `tareas/`), `lc-temperatura`, `razonamiento` (saca el razonamiento viejo del contexto) |
 | `kit/skills/` | las 5 skills; para sumar una, agrega su carpeta |
 | `kit/oficio.md` | las reglas de trabajo que se agregan al prompt del agente |
 | `little-coder/` | copia de little-coder 1.20.0 fija sobre Pi 1.5.0 |
